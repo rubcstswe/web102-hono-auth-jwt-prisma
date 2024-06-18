@@ -3,12 +3,12 @@ import { cors } from "hono/cors";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { HTTPException } from "hono/http-exception";
 import { decode, sign, verify } from "hono/jwt";
-import { jwt } from 'hono/jwt'
-import type { JwtVariables } from 'hono/jwt'
+import { jwt } from "hono/jwt";
+import type { JwtVariables } from "hono/jwt";
 
-type Variables = JwtVariables
+type Variables = JwtVariables;
 
-const app = new Hono<{ Variables: Variables }>()
+const app = new Hono<{ Variables: Variables }>();
 
 const prisma = new PrismaClient();
 
@@ -17,12 +17,12 @@ app.use("/*", cors());
 app.use(
   "/protected/*",
   jwt({
-    secret: 'mySecretKey',
+    secret: "mySecretKey",
   })
 );
 
 app.get("/protected/account/balance", async (c) => {
-  const payload = c.get('jwtPayload')
+  const payload = c.get("jwtPayload");
   if (!payload) {
     throw new HTTPException(401, { message: "Unauthorized" });
   }
@@ -86,9 +86,9 @@ app.post("/login", async (c) => {
     const body = await c.req.json();
     const user = await prisma.user.findUnique({
       where: { email: body.email },
-      select: { id: true, hashedPassword: true },
+      select: { id: true, hashedPassword: true, email: true },
     });
-
+    console.log(user)
     if (!user) {
       return c.json({ message: "User not found" });
     }
@@ -101,11 +101,16 @@ app.post("/login", async (c) => {
     if (match) {
       const payload = {
         sub: user.id,
-        exp: Math.floor(Date.now() / 1000) + 60 * 60, // Token expires in 60 minutes
+        exp: Math.floor(Date.now() / 1000) + 60 * 1440, // Token expires in 60 minutes
       };
       const secret = "mySecretKey";
       const token = await sign(payload, secret);
-      return c.json({ message: "Login successful", token: token });
+      return c.json({
+        message: "Login successful",
+        token: token,
+        email: user.email,
+        id: user.id,
+      });
     } else {
       throw new HTTPException(401, { message: "Invalid credentials" });
     }
