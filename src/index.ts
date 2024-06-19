@@ -21,29 +21,35 @@ app.use(
   })
 );
 
-app.get("/protected/account/balance", async (c) => {
+app.post("/protected/auction/create", async (c) => {
   const payload = c.get("jwtPayload");
+  const body = await c.req.json();
+
   if (!payload) {
     throw new HTTPException(401, { message: "Unauthorized" });
   }
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: { Account: { select: { balance: true, id: true } } },
+  const auctionRoom = await prisma.auctionRoom.create({
+    data: {
+      name: body.name,
+      itemName: body.itemName,
+      itemDescription: body.itemDescription,
+      itemStartingPrice: body.itemStartingPrice,
+      itemMinSellingPrice: body.itemMinSellingPrice,
+      itemMinIncrementBid: body.itemMinIncrementBid,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      owner: {
+        connect: { id: payload.sub },
+      },
+    },
   });
 
-  return c.json({ data: user });
+  return c.json({ message: "Auction created successfully", data: auctionRoom });
 });
 
-app.get("/:userId/account/balance", async (c) => {
-  // get user account balance from url params
-  const { userId } = c.req.param();
-
-  // create a new user
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { Account: { select: { balance: true, id: true } } },
-  });
-  return c.json({ data: user });
+app.get("/auctions", async (c) => {
+  const auctionRooms = await prisma.auctionRoom.findMany();
+  return c.json({ data: auctionRooms });
 });
 
 app.post("/register", async (c) => {
@@ -59,11 +65,6 @@ app.post("/register", async (c) => {
       data: {
         email: body.email,
         hashedPassword: bcryptHash,
-        Account: {
-          create: {
-            balance: 0,
-          },
-        },
       },
     });
 
@@ -88,7 +89,7 @@ app.post("/login", async (c) => {
       where: { email: body.email },
       select: { id: true, hashedPassword: true, email: true },
     });
-    console.log(user)
+    console.log(user);
     if (!user) {
       return c.json({ message: "User not found" });
     }
