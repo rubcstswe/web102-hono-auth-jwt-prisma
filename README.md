@@ -1,3 +1,5 @@
+SETUP
+
 To install dependencies:
 ```sh
 bun install
